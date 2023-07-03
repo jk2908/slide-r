@@ -1,0 +1,106 @@
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <title>slide-r</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+
+      body {
+        font-family: system-ui;
+        line-height: 1.5;
+        margin: 80px;
+      }
+
+      header ul {
+        display: flex;
+        gap: 40px;
+      }
+
+      header + main {
+        margin-block-start: 40px;
+      }
+
+      main {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        justify-content: center;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <ul>
+        <li><a href="/slide-r/demo">Demo</a></li>
+        <li><a href="https://github.com/jk2908/slide-r">Github</a></li>
+      </ul>
+    </header>
+
+    <main>
+      <div style="border: 1px solid black">
+        <slide-r>
+          <li slot="slide">Slide content 1</li>
+          <li slot="slide">Slide content 2</li>
+          <li slot="slide">Slide content 3</li>
+          <li slot="slide">Slide content 4</li>
+          <li slot="slide">Slide content 5</li>
+        </slide-r>
+
+        <button id="jump-1">Jump to page 1</button>
+        <button id="jump-3">Jump to page 3</button>
+        <button id="jump-5">Jump to page 5</button>
+      </div>
+    </main>
+
+    <script type="module" src="../slide-r.js"></script>
+
+    <script>
+      const slider = document.querySelector('slide-r')
+
+      slider.addEventListener('sl1d3-r__0:ready', e => {
+        console.log('Ready', e.detail)
+      })
+
+      slider.addEventListener('sl1d3-r__0:change', e => {
+        console.log('Changed', e.detail)
+      })
+
+      slider.addEventListener('sl1d3-r__0:resize', e => {
+        console.log('Resize', e.detail)
+      })
+
+      slider.addEventListener('sl1d3-r__0:autoplay:started', e => {
+        console.log('Autoplay started', e.detail)
+      })
+
+      slider.addEventListener('sl1d3-r__0:autoplay:stopped', e => {
+        console.log('Autoplay stopped', e.detail)
+      })
+
+      slider.addEventListener('sl1d3-r__0:swipestart', e => {
+        console.log('Swipestart', e.detail)
+      })
+
+      slider.addEventListener('sl1d3-r__0:swipeend', e => {
+        console.log('Swipeend', e.detail)
+      })
+
+      document.getElementById('jump-1').addEventListener('click', () => {
+        slider.handleChange({ origin: 'external', jumpToPagination: 1 })
+      })
+
+      document.getElementById('jump-3').addEventListener('click', () => {
+        slider.handleChange({ origin: 'external', jumpToPagination: 3 })
+      })
+
+      document.getElementById('jump-5').addEventListener('click', () => {
+        slider.handleChange({ origin: 'external', jumpToPagination: 5 })
+      })
+    </script>
+  </body>
+</html>
