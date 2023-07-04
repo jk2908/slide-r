@@ -142,10 +142,18 @@ export class Slider extends HTMLElement {
     return this.slides[0].offsetWidth
   }
 
-  get currentTranslateValue() {
+  get currentTrackTranslateValue() {
     const [, currentTranslateValue] = this.track.style.transform.match(/translate3d\((-?\d+)px/) || [, 0]
 
     return parseFloat(currentTranslateValue)
+  }
+
+  get newTrackTranslateValue() {
+    const { slideCount } = this.state
+    const multipliedSlideWidth = this.slideWidth * slideCount
+    const multipliedListGap = (parseFloat(getComputedStyle(this.list).gap) || 0) * slideCount
+
+    return -(multipliedSlideWidth + multipliedListGap)
   }
 
   connectedCallback() {
@@ -324,9 +332,7 @@ export class Slider extends HTMLElement {
         this.track.addEventListener('touchend', this.handleSwipeEnd.bind(this), { signal })
         this.track.addEventListener('mousedown', this.handleSwipeStart.bind(this), { signal })
         this.track.addEventListener('mousemove', this.handleSwipeMove.bind(this), { signal })
-        this.track.addEventListener('mouseup', this.handleSwipeEnd.bind(this), {
-          signal,
-        })
+        this.track.addEventListener('mouseup', this.handleSwipeEnd.bind(this), { signal })
       }
 
       this.renderElements({ initialRender: true })
@@ -372,10 +378,8 @@ export class Slider extends HTMLElement {
       }
     }
 
-    const visibleSlidesCount = await this.getVisibleSlidesCount()
-
     this.state = {
-      visibleSlidesCount,
+      visibleSlidesCount: await this.getVisibleSlidesCount(),
     }
 
     this.state = {
@@ -489,14 +493,13 @@ export class Slider extends HTMLElement {
       : 'default'
     const trackWidth = this.track.offsetWidth
     const listGap = parseFloat(getComputedStyle(this.list).gap)
-    const slideWidth = this.slides[0].offsetWidth
 
     return new Promise(resolve => {
       if (sliderStyle === 'fade') {
         resolve(1)
       }
 
-      resolve(Math.floor(trackWidth / (slideWidth + (listGap || 0))))
+      resolve(Math.floor(trackWidth / (this.slideWidth + (listGap || 0))))
     })
   }
 
@@ -542,6 +545,10 @@ export class Slider extends HTMLElement {
 
     if (initialRender && paginationStyle === 'numbers') {
       this.paginationDotsWrapper.remove()
+    }
+
+    if (!Number.isFinite(currentPagination) || !Number.isFinite(totalPagination)) {
+      return
     }
 
     if ((initialRender || recalculated) && ['dots', 'both'].includes(paginationStyle)) {
@@ -660,11 +667,7 @@ export class Slider extends HTMLElement {
           })
           break
         default:
-          const multipliedSlideWidth = this.slideWidth * slideCount
-          const multipliedListGap = (parseFloat(getComputedStyle(this.list).gap) || 0) * slideCount
-          const newTranslateValue = isLooping && direction === 'next' ? 0 : -(multipliedSlideWidth + multipliedListGap)
-
-          this.trackTranslateValue = newTranslateValue
+          this.trackTranslateValue =  isLooping && direction === 'next' ? 0 : this.newTrackTranslateValue
       }
     }
 
@@ -683,14 +686,15 @@ export class Slider extends HTMLElement {
   }
 
   handleResize = debounce(async () => {
-    const { visibleSlidesCount: oldVisibleSlidesCount, currentSlides } = this.state
+    const { visibleSlidesCount: oldVisibleSlidesCount } = this.state
     const newVisibleSlidesCount = await this.getVisibleSlidesCount()
 
     this.trackTranslateValue =
-      oldVisibleSlidesCount !== newVisibleSlidesCount ? 0 : -this.slideWidth * this.slides.indexOf(currentSlides[0])
+      oldVisibleSlidesCount !== newVisibleSlidesCount ? 0 : this.newTrackTranslateValue
 
     if (oldVisibleSlidesCount !== newVisibleSlidesCount) {
       this.state = {
+        slideCount: 0,
         currentPagination: 1,
         totalPagination: Math.ceil(this.slides.length / newVisibleSlidesCount),
         visibleSlidesCount: newVisibleSlidesCount,
