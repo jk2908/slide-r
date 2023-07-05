@@ -163,15 +163,18 @@ export class Slider extends HTMLElement {
           contain: layout style;
           display: block;
           font: inherit;
-          overflow: hidden;
           position: relative;
         }
 
         :host::part(root) {
           display: flex;
-          flex-direction: var(--sl1d3-r-direction, column);
+          flex-direction: var(--sl1d3-r-root-direction, column);
           gap: var(--sl1d3-r-root-gap, 10px);
           overflow: hidden;
+        }
+
+        :host([slider-style=carousel])::part(root) {
+          overflow: visible;
         }
 
         :host::part(track) {
@@ -179,10 +182,10 @@ export class Slider extends HTMLElement {
             var(--sl1d3-r-track-transition, transform var(--sl1d3-r-track-transition-duration, ${defaultTransitionDuration}ms) cubic-bezier(1, 0, 0.2, 1));
         }
 
-        :host([slider-style=fade])::part(track) {
+        :host([slider-style=fade])::part(track), :host([slider-style=carousel])::part(track) {
           --sl1d3-r-track-transition: none;
         }
-
+        
         :host::part(list) {
           display: var(--sl1d3-r-list-display, flex);
           gap: var(--sl1d3-r-list-gap, 0px);
@@ -193,6 +196,11 @@ export class Slider extends HTMLElement {
 
         :host([slider-style=fade])::part(list) {
           display: grid;
+        }
+
+        :host([slider-style=carousel])::part(list) {
+          display: block;
+          position: relative;
         }
 
         :host::part(control-panel) {
@@ -259,11 +267,26 @@ export class Slider extends HTMLElement {
           grid-area: 1 / 1;
           opacity: 0;
           transition: 
-            var(--sl1d3-r-slide-transition, opacity ${defaultTransitionDuration}ms cubic-bezier(1, 0, 0.2, 1));
+            var(--sl1d3-r-slide-transition, opacity var(--sl1d3-r-slide-transition-duration, ${defaultTransitionDuration}ms) cubic-bezier(1, 0, 0.2, 1));
         }
 
         :host([slider-style=fade]) ::slotted([slot=slide]:first-child) {
           opacity: 1;
+        }
+
+        :host([slider-style=carousel]) ::slotted([slot=slide]) {
+          inset: 0 auto auto 50%;
+          position: absolute;
+          transform: translateX(-50%);
+          transition: var(--sl1d3-r-slide-transition, inset var(--sl1d3-r-slide-transition-duration, ${defaultTransitionDuration}ms) cubic-bezier(1, 0, 0.2, 1));
+        }
+
+        :host([slider-style=carousel]) ::slotted([slot=slide]:nth-child(2)) {
+          inset: 0 auto auto 100%;
+        }
+
+        :host([slider-style=carousel]) ::slotted([slot=slide]:last-child) {
+          inset: 0 auto auto 0;
         }
 
         .sr-only {
@@ -390,7 +413,7 @@ export class Slider extends HTMLElement {
       totalPagination: Math.ceil(this.slides.length / this.state.visibleSlidesCount),
     }
 
-    if (paginationStyle && ['numbers', 'dots', 'both'].includes(paginationStyle)) {
+    if (paginationStyle && ['numbers', 'dots', 'both', 'none'].includes(paginationStyle)) {
       this.state = { paginationStyle }
     }
 
@@ -398,7 +421,7 @@ export class Slider extends HTMLElement {
       this.state = { paginationNumbersDivider }
     }
 
-    if (sliderStyle && ['default', 'fade'].includes(sliderStyle)) {
+    if (sliderStyle && ['default', 'fade', 'carousel'].includes(sliderStyle)) {
       this.state = { sliderStyle }
     }
 
@@ -502,8 +525,25 @@ export class Slider extends HTMLElement {
     }
 
     if (['dots', 'both'].includes(paginationStyle)) {
-      this.paginationDots.map(dot => {
+      for (const dot of this.paginationDots) {
         dot.setAttribute('data-state', dot === this.paginationDots[currentPagination - 1] ? 'active' : 'inactive')
+      }
+    }
+
+    if (sliderStyle === 'carousel') {
+      this.slides.map(slide => {
+        slide.setAttribute(
+          'data-state',
+          slide === currentSlides[0]
+            ? 'active'
+            : this.slides.indexOf(slide) ===
+              (this.slides.indexOf(currentSlides[0]) - 1 + this.slides.length) % this.slides.length
+            ? 'previous'
+            : this.slides.indexOf(slide) ===
+              (this.slides.indexOf(currentSlides[0]) + 1 + this.slides.length) % this.slides.length
+            ? 'next'
+            : 'inactive'
+        )
       })
     }
   }
@@ -512,14 +552,14 @@ export class Slider extends HTMLElement {
     const { isReady, sliderStyle: stateSliderStyle } = this.state
     const sliderStyle = isReady
       ? stateSliderStyle
-      : ['fade', 'default'].includes(this.getAttribute('slider-style'))
+      : ['fade', 'default', 'carousel'].includes(this.getAttribute('slider-style'))
       ? this.getAttribute('slider-style')
       : 'default'
     const trackWidth = this.track.offsetWidth
     const listGap = parseFloat(getComputedStyle(this.list).gap)
 
     return new Promise(resolve => {
-      if (sliderStyle === 'fade') {
+      if (sliderStyle === 'fade' || sliderStyle === 'carousel') {
         resolve(1)
       }
 
@@ -565,10 +605,15 @@ export class Slider extends HTMLElement {
   }
 
   renderElements({ initialRender = false, recalculated = false } = {}) {
-    const { currentPagination, totalPagination, paginationStyle, paginationNumbersDivider } = this.state
+    const { currentPagination, totalPagination, paginationStyle, paginationNumbersDivider, controls } = this.state
 
     if (initialRender && paginationStyle === 'numbers') {
       this.paginationDotsWrapper.remove()
+    }
+
+    if (initialRender && !controls) {
+      this.previousButton.remove()
+      this.nextButton.remove()
     }
 
     if (!Number.isFinite(currentPagination) || !Number.isFinite(totalPagination)) {
@@ -611,7 +656,7 @@ export class Slider extends HTMLElement {
     }, playbackRate)
 
     this.dispatch({
-      eventType: 'autoplay:started',
+      eventType: 'autoplaystart',
       payload: { autoplayFn: this.autoplayFn },
     })
   }
@@ -625,7 +670,7 @@ export class Slider extends HTMLElement {
     this.autoplayFn = null
 
     this.dispatch({
-      eventType: 'autoplay:stopped',
+      eventType: 'autoplaystop',
       payload: { autoplayFn: this.autoplayFn },
     })
   }
@@ -682,7 +727,7 @@ export class Slider extends HTMLElement {
     }
 
     {
-      const { slideCount, currentSlides } = this.state
+      const { currentSlides } = this.state
 
       switch (sliderStyle) {
         case 'fade':
@@ -690,8 +735,23 @@ export class Slider extends HTMLElement {
             slide.style.opacity = currentSlides.includes(slide) ? 1 : 0
           })
           break
+        case 'carousel':
+          this.slides.map(slide => {
+            slide.style.inset = `0 auto auto ${
+              this.slides.indexOf(slide) === this.slides.indexOf(currentSlides[0])
+                ? '50%'
+                : this.slides.indexOf(slide) ===
+                  (this.slides.indexOf(currentSlides[0]) - 1 + this.slides.length) % this.slides.length
+                ? '0'
+                : this.slides.indexOf(slide) ===
+                  (this.slides.indexOf(currentSlides[0]) + 1 + this.slides.length) % this.slides.length
+                ? '100%'
+                : '50%'
+            }`
+          })
+          break
         default:
-          this.trackTranslateValue =  isLooping && direction === 'next' ? 0 : this.newTrackTranslateValue
+          this.trackTranslateValue = isLooping && direction === 'next' ? 0 : this.newTrackTranslateValue
       }
     }
 
@@ -710,11 +770,12 @@ export class Slider extends HTMLElement {
   }
 
   handleResize = debounce(async () => {
-    const { visibleSlidesCount: oldVisibleSlidesCount } = this.state
+    const { visibleSlidesCount: oldVisibleSlidesCount, sliderStyle } = this.state
     const newVisibleSlidesCount = await this.getVisibleSlidesCount()
 
-    this.trackTranslateValue =
-      oldVisibleSlidesCount !== newVisibleSlidesCount ? 0 : this.newTrackTranslateValue
+    if (!['fade', 'carousel'].includes(sliderStyle)) {
+      this.trackTranslateValue = oldVisibleSlidesCount !== newVisibleSlidesCount ? 0 : this.newTrackTranslateValue
+    }
 
     if (oldVisibleSlidesCount !== newVisibleSlidesCount) {
       this.state = {
