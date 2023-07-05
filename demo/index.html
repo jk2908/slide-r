@@ -43,7 +43,7 @@
 
     <main>
       <div style="border: 1px solid black">
-        <slide-r>
+        <slide-r slider-style="carousel">
           <li slot="slide">Slide content 1</li>
           <li slot="slide">Slide content 2</li>
           <li slot="slide">Slide content 3</li>
@@ -53,7 +53,6 @@
 
         <button id="jump-1">Jump to page 1</button>
         <button id="jump-3">Jump to page 3</button>
-        <button id="jump-5">Jump to page 5</button>
       </div>
     </main>
 
@@ -74,11 +73,11 @@
         console.log('Resize', e.detail)
       })
 
-      slider.addEventListener('sl1d3-r__0:autoplay:started', e => {
+      slider.addEventListener('sl1d3-r__0:autoplaystart', e => {
         console.log('Autoplay started', e.detail)
       })
 
-      slider.addEventListener('sl1d3-r__0:autoplay:stopped', e => {
+      slider.addEventListener('sl1d3-r__0:autoplaystop', e => {
         console.log('Autoplay stopped', e.detail)
       })
 
@@ -96,10 +95,6 @@
 
       document.getElementById('jump-3').addEventListener('click', () => {
         slider.handleChange({ origin: 'external', jumpToPagination: 3 })
-      })
-
-      document.getElementById('jump-5').addEventListener('click', () => {
-        slider.handleChange({ origin: 'external', jumpToPagination: 5 })
       })
     </script>
   </body>
