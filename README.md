@@ -110,8 +110,7 @@ When the slider style is set to 'carousel', some basic styles to apply might be:
     }
 
     & [slot=slide][aria-hidden=false] {
-      --sl1d3-r-slide-transform: translateX(-50%) scale(1.2) [extend transform to make current slide bigger]
-
+      transform: translateX(-50%) scale(1.2) [extend transform to make current slide bigger]
       z-index: [higher than other slides]
     }
   }
