@@ -14,9 +14,9 @@ const initialState = {
   autoplay: false,
   playbackRate: 5000,
   loop: false,
-  disableButtons: 'at-edges',
   prependId: true,
   allowSwiping: true,
+  controls: true,
 }
 
 const initialSwipeStore = {
@@ -366,9 +366,9 @@ export class Slider extends HTMLElement {
     const autoplay = this.getAttribute('autoplay') || this.hasAttribute('autoplay')
     const playbackRate = this.getAttribute('playback-rate')
     const loop = this.getAttribute('loop') || this.hasAttribute('loop')
-    const disableButtons = this.getAttribute('disable-buttons')
     const prependId = this.getAttribute('prepend-id') || this.hasAttribute('prepend-id')
     const allowSwiping = this.getAttribute('allow-swiping') || this.hasAttribute('allow-swiping')
+    const controls = this.getAttribute('controls') || this.hasAttribute('controls')
 
     if (id) {
       this.state = { id }
@@ -424,10 +424,6 @@ export class Slider extends HTMLElement {
       this.state = { loop: loop === 'false' ? false : true }
     }
 
-    if (disableButtons && ['at-edges', 'always', 'never'].includes(disableButtons)) {
-      this.state = { disableButtons }
-    }
-
     if (prependId) {
       this.state = { prependId: prependId === 'false' ? false : true }
     }
@@ -435,15 +431,24 @@ export class Slider extends HTMLElement {
     if (allowSwiping) {
       this.state = { allowSwiping: allowSwiping === 'false' ? false : true }
     }
+
+    if (controls) {
+      this.state = { controls: controls === 'false' ? false : true }
+    }
   }
 
   setAttributes() {
-    const { id, paginationStyle, visibleSlidesCount, loop, allowSwiping } = this.state
+    const { id, paginationStyle, visibleSlidesCount, sliderStyle, loop, allowSwiping, controls } = this.state
 
     this.id = id
     this.track.id = id + '-track'
-    this.previousButton.setAttribute('aria-controls', id + '-track')
-    this.nextButton.setAttribute('aria-controls', id + '-track')
+
+    if (controls) {
+      this.previousButton.setAttribute('aria-controls', id + '-track')
+      this.nextButton.setAttribute('aria-controls', id + '-track')
+
+      this.previousButton.disabled = !loop
+    }
 
     this.slides.map((slide, i) => {
       slide.role = 'group'
@@ -452,8 +457,8 @@ export class Slider extends HTMLElement {
       slide.setAttribute('aria-hidden', i >= visibleSlidesCount)
     })
 
-    this.previousButton.disabled = !loop
     this.paginationNumbersWrapper.className = paginationStyle === 'dots' ? 'sr-only' : ''
+    this.pagination.className = paginationStyle === 'none' ? 'sr-only' : ''
     this.track.style.cursor = allowSwiping ? 'grab' : 'default'
 
     if (['dots', 'both'].includes(paginationStyle)) {
@@ -461,14 +466,33 @@ export class Slider extends HTMLElement {
         dot.setAttribute('data-state', i === 0 ? 'active' : 'inactive')
       })
     }
+
+    if (sliderStyle === 'carousel') {
+      this.slides[0].setAttribute('data-state', 'active')
+      this.slides[this.slides.length - 1].setAttribute('data-state', 'previous')
+      this.slides[1].setAttribute('data-state', 'next')
+
+      for (let i = 2; i < this.slides.length - 1; i++) {
+        this.slides[i].setAttribute('data-state', 'inactive')
+      }
+    }
   }
 
   updateAttributes() {
-    const { currentSlides, currentPagination, totalPagination, paginationStyle, isMoving, loop } = this.state
+    const {
+      currentSlides,
+      currentPagination,
+      totalPagination,
+      paginationStyle,
+      sliderStyle,
+      isMoving,
+      loop,
+      controls,
+    } = this.state
 
     this.track.setAttribute('aria-busy', isMoving)
 
-    if (!loop) {
+    if (!loop && controls) {
       this.previousButton.disabled = currentPagination === 1
       this.nextButton.disabled = currentPagination === totalPagination
     }
