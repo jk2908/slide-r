@@ -421,7 +421,7 @@ export class Slider extends HTMLElement {
       this.state = { paginationNumbersDivider }
     }
 
-    if (sliderStyle && ['default', 'fade', 'carousel'].includes(sliderStyle)) {
+    if (sliderStyle && ['fade', 'carousel'].includes(sliderStyle)) {
       this.state = { sliderStyle }
     }
 
@@ -552,7 +552,7 @@ export class Slider extends HTMLElement {
     const { isReady, sliderStyle: stateSliderStyle } = this.state
     const sliderStyle = isReady
       ? stateSliderStyle
-      : ['fade', 'default', 'carousel'].includes(this.getAttribute('slider-style'))
+      : ['fade', 'carousel'].includes(this.getAttribute('slider-style'))
       ? this.getAttribute('slider-style')
       : 'default'
     const trackWidth = this.track.offsetWidth
@@ -773,7 +773,7 @@ export class Slider extends HTMLElement {
     const { visibleSlidesCount: oldVisibleSlidesCount, sliderStyle } = this.state
     const newVisibleSlidesCount = await this.getVisibleSlidesCount()
 
-    if (!['fade', 'carousel'].includes(sliderStyle)) {
+    if (sliderStyle === 'default') {
       this.trackTranslateValue = oldVisibleSlidesCount !== newVisibleSlidesCount ? 0 : this.newTrackTranslateValue
     }
 
