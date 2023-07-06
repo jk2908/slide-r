@@ -773,7 +773,7 @@ export class Slider extends HTMLElement {
     const { visibleSlidesCount: oldVisibleSlidesCount, sliderStyle } = this.state
     const newVisibleSlidesCount = await this.getVisibleSlidesCount()
 
-    if (!['fade', 'carousel'].includes(sliderStyle)) {
+    if (sliderStyle === 'default') {
       this.trackTranslateValue = oldVisibleSlidesCount !== newVisibleSlidesCount ? 0 : this.newTrackTranslateValue
     }
 
