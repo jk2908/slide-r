@@ -314,8 +314,8 @@ export class Slider extends HTMLElement {
               <slot name="previous-button" part="slide">Previous</slot>
             </button>
             <div part="pagination" aria-live="polite">
-              <div part="pagination-numbers-wrapper"></div>
-              <div part="pagination-dots-wrapper" aria-hidden="true"></div>
+              <div part="pagination-numbers-wrapper" aria-label="Page"></div>
+              <div part="pagination-dots-wrapper"></div>
             </div>
             <button part="next-button" type="button" aria-label="Next slide">
               <slot name="next-button">Next</slot>
@@ -357,6 +357,20 @@ export class Slider extends HTMLElement {
         this.track.addEventListener('mousemove', this.handleSwipeMove.bind(this), { signal })
         this.track.addEventListener('mouseup', this.handleSwipeEnd.bind(this), { signal })
       }
+
+      this.paginationDotsWrapper.addEventListener(
+        'click',
+        e => {
+          const targetElement = e.target.closest('[part=pagination-dot]')
+
+          if (targetElement) {
+            const jumpToPagination = this.paginationDots.indexOf(targetElement) + 1
+
+            this.handleChange({ jumpToPagination, origin: 'pagination-dots' })
+          }
+        },
+        { signal }
+      )
 
       this.renderElements({ initialRender: true })
       this.setAttributes()
