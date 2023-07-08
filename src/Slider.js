@@ -388,6 +388,7 @@ export class Slider extends HTMLElement {
       this.autoplayFn = null
     }
 
+    this.state = { isReady: false }
     this.dispatch({ eventType: 'destroy' })
   }
 
