@@ -43,7 +43,7 @@
 
     <main>
       <div style="border: 1px solid black">
-        <slide-r>
+        <slide-r pagination-style="dots">
           <li slot="slide">Slide content 1</li>
           <li slot="slide">Slide content 2</li>
           <li slot="slide">Slide content 3</li>
@@ -63,6 +63,10 @@
 
       slider.addEventListener('sl1d3-r__0:ready', e => {
         console.log('Ready', e.detail)
+      })
+
+      slider.addEventListener('sl1d3-r__0:destroy', e => {
+        console.log('Destroyed', e.detail)
       })
 
       slider.addEventListener('sl1d3-r__0:change', e => {

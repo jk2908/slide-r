@@ -75,7 +75,7 @@ You can also access most parts of the slider from your external CSS using the `:
 
 Parts: 'root', 'track', 'list', 'control-panel', 'controls', 'pagination', 'pagination-dots-wrapper', 'pagination-dot', 'pagination-numbers-wrapper', 'previous-button', 'next-button'
 
-You also have the 'slide' and 'additional-content' slots. The slide slot is for your ... slides. `<li slot="slide"></li>` Whilst the 'additional-content' slot will appear (if using default CSS) beneath the controls and pagination, inside the control-panel part. You can access these slots from external CSS by targetting them like:
+You also have the 'slide', 'previous-button', 'next-button' and 'additional-content' slots. The slide slot is for your ... slides. `<li slot="slide"></li>` Whilst the 'additional-content' slot will appear (if using default CSS) beneath the controls and pagination, inside the control-panel part. You can access these slots from external CSS by targetting them like:
 ```
   [slot=slide] {
     background-color: blue;
