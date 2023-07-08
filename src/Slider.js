@@ -482,17 +482,17 @@ export class Slider extends HTMLElement {
     this.track.id = id + '-track'
 
     if (controls) {
-      this.previousButton.setAttribute('aria-controls', id + '-track')
-      this.nextButton.setAttribute('aria-controls', id + '-track')
+      this.previousButton.ariaControls = id + '-track'
+      this.nextButton.ariaControls = id + '-track'
 
       this.previousButton.disabled = !loop
     }
 
     this.slides.map((slide, i) => {
       slide.role = 'group'
-      slide.setAttribute('aria-roledescription', 'slide')
-      slide.setAttribute('aria-label', i + 1 + ' of ' + this.slides.length)
-      slide.setAttribute('aria-hidden', i >= visibleSlidesCount)
+      slide.ariaRoleDescription = 'slide'
+      slide.ariaLabel = i + 1 + ' of ' + this.slides.length
+      slide.ariaHidden = i >= visibleSlidesCount
     })
 
     this.paginationNumbersWrapper.className = paginationStyle === 'dots' ? 'sr-only' : ''
@@ -502,6 +502,7 @@ export class Slider extends HTMLElement {
     if (['dots', 'both'].includes(paginationStyle)) {
       this.paginationDots.map((dot, i) => {
         dot.setAttribute('data-state', i === 0 ? 'active' : 'inactive')
+        dot.ariaCurrent = i === 0
       })
     }
 
@@ -528,7 +529,7 @@ export class Slider extends HTMLElement {
       controls,
     } = this.state
 
-    this.track.setAttribute('aria-busy', isMoving)
+    this.track.ariaBusy = isMoving
 
     if (!loop && controls) {
       this.previousButton.disabled = currentPagination === 1
@@ -536,12 +537,13 @@ export class Slider extends HTMLElement {
     }
 
     for (const slide of this.slides) {
-      slide.setAttribute('aria-hidden', !currentSlides.includes(slide))
+      slide.ariaHidden = !currentSlides.includes(slide)
     }
 
     if (['dots', 'both'].includes(paginationStyle)) {
       for (const dot of this.paginationDots) {
         dot.setAttribute('data-state', dot === this.paginationDots[currentPagination - 1] ? 'active' : 'inactive')
+        dot.ariaCurrent = dot === this.paginationDots[currentPagination - 1]
       }
     }
 
