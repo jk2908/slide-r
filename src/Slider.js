@@ -8,6 +8,7 @@ const initialState = {
   totalPagination: undefined,
   paginationStyle: 'numbers',
   paginationNumbersDivider: '/',
+  hideSinglePagination: true,
   sliderStyle: 'default',
   transitionDuration: 250,
   isMoving: false,
@@ -59,9 +60,7 @@ export class Slider extends HTMLElement {
   }
 
   attributeChangedCallback(property, oldValue, newValue) {
-    if (oldValue === newValue) {
-      return
-    }
+    if (oldValue === newValue) return
 
     this[property] = newValue
   }
@@ -126,6 +125,10 @@ export class Slider extends HTMLElement {
     return Array.from(this.shadowRoot.querySelectorAll('[part=pagination-dot]'))
   }
 
+  get controlPanel() {
+    return this.shadowRoot.querySelector('[part=control-panel]')
+  }
+
   get controls() {
     return this.shadowRoot.querySelector('[part=controls]')
   }
@@ -143,7 +146,9 @@ export class Slider extends HTMLElement {
   }
 
   get currentTrackTranslateValue() {
-    const [, currentTranslateValue] = this.track.style.transform.match(/translate3d\((-?\d+)px/) || [, 0]
+    const [, currentTranslateValue] = this.track.style.transform.match(
+      /translate3d\((-?\d+)px/
+    ) || [, 0]
 
     return parseFloat(currentTranslateValue)
   }
@@ -304,9 +309,9 @@ export class Slider extends HTMLElement {
 
       <div part="root" role="region" aria-roledescription="carousel">
         <div part="track" aria-atomic="true" aria-busy="false" aria-live="polite">
-          <ul part="list" role="presentation">
+          <div part="list" role="presentation">
             <slot name="slide"></slot>
-          </ul>
+          </div>
         </div>
         <div part="control-panel">
           <div part="controls">
@@ -350,9 +355,9 @@ export class Slider extends HTMLElement {
       const { allowSwiping } = this.state
 
       if (allowSwiping) {
-        this.track.addEventListener('touchstart', this.handleSwipeStart.bind(this), { signal })
-        this.track.addEventListener('touchmove', this.handleSwipeMove.bind(this), { signal })
-        this.track.addEventListener('touchend', this.handleSwipeEnd.bind(this), { signal })
+        this.track.addEventListener('touchstart', this.handleSwipeStart.bind(this), { signal, passive: true })
+        this.track.addEventListener('touchmove', this.handleSwipeMove.bind(this), { signal, passive: true })
+        this.track.addEventListener('touchend', this.handleSwipeEnd.bind(this), { signal, passive: true })
         this.track.addEventListener('mousedown', this.handleSwipeStart.bind(this), { signal })
         this.track.addEventListener('mousemove', this.handleSwipeMove.bind(this), { signal })
         this.track.addEventListener('mouseup', this.handleSwipeEnd.bind(this), { signal })
@@ -361,9 +366,10 @@ export class Slider extends HTMLElement {
       this.paginationDotsWrapper.addEventListener(
         'click',
         e => {
+          const { isMoving } = this.state
           const targetElement = e.target.closest('[part=pagination-dot]')
 
-          if (targetElement) {
+          if (targetElement && !isMoving) {
             const jumpToPagination = this.paginationDots.indexOf(targetElement) + 1
 
             this.handleChange({ jumpToPagination, origin: 'pagination-dots' })
@@ -396,9 +402,12 @@ export class Slider extends HTMLElement {
     const id = this.getAttribute('id')
     const paginationStyle = this.getAttribute('pagination-style')
     const paginationNumbersDivider = this.getAttribute('pagination-numbers-divider')
+    const hideSinglePagination = this.getAttribute('hide-single-pagination')
     const sliderStyle = this.getAttribute('slider-style')
     const transitionDuration =
-      getComputedStyle(document.documentElement).getPropertyValue('--sl1d3-r-track-transition-duration') ||
+      getComputedStyle(document.documentElement).getPropertyValue(
+        '--sl1d3-r-track-transition-duration'
+      ) ||
       getComputedStyle(this).getPropertyValue('--sl1d3-r-track-transition-duration') ||
       defaultTransitionDuration
     const autoplay = this.getAttribute('autoplay') || this.hasAttribute('autoplay')
@@ -412,7 +421,9 @@ export class Slider extends HTMLElement {
       this.state = { id }
     } else {
       this.state = {
-        id: 'sl1d3-r__' + Array.from(document.querySelectorAll(this.tagName.toLowerCase())).indexOf(this),
+        id:
+          'sl1d3-r__' +
+          Array.from(document.querySelectorAll(this.tagName.toLowerCase())).indexOf(this),
       }
     }
 
@@ -434,6 +445,10 @@ export class Slider extends HTMLElement {
 
     if (paginationNumbersDivider) {
       this.state = { paginationNumbersDivider }
+    }
+
+    if (hideSinglePagination) {
+      this.state = { hideSinglePagination: hideSinglePagination === 'false' ? false : true }
     }
 
     if (sliderStyle && ['fade', 'carousel'].includes(sliderStyle)) {
@@ -476,23 +491,42 @@ export class Slider extends HTMLElement {
   }
 
   setAttributes() {
-    const { id, paginationStyle, visibleSlidesCount, sliderStyle, loop, allowSwiping, controls } = this.state
+    const {
+      id,
+      paginationStyle,
+      hideSinglePagination,
+      visibleSlidesCount,
+      sliderStyle,
+      loop,
+      allowSwiping,
+      controls,
+      currentPagination,
+      totalPagination,
+    } = this.state
 
     this.id = id
     this.track.id = id + '-track'
 
     if (controls) {
-      this.previousButton.ariaControls = id + '-track'
-      this.nextButton.ariaControls = id + '-track'
+      const hideControls = hideSinglePagination && totalPagination === 1
 
-      this.previousButton.disabled = !loop
+      this.previousButton.setAttribute('aria-controls', id + '-track')
+      this.nextButton.setAttribute('aria-controls', id + '-track')
+
+      this.previousButton.disabled = !loop && currentPagination === 1
+      this.nextButton.disabled = !loop && currentPagination === totalPagination
+
+      this.controls.style.setProperty(
+        'display', 
+        hideControls ? 'none' : getComputedStyle(this.controls).display,
+        hideControls ? 'important' : ''
+      )
     }
 
-    this.slides.map((slide, i) => {
-      slide.role = 'group'
-      slide.ariaRoleDescription = 'slide'
-      slide.ariaLabel = i + 1 + ' of ' + this.slides.length
-      slide.ariaHidden = i >= visibleSlidesCount
+    this.slides.forEach((slide, i) => {
+      slide.setAttribute('role', 'group')
+      slide.setAttribute('aria-roledescription', 'slide')
+      slide.setAttribute('aria-label', i + 1 + ' of ' + this.slides.length)
     })
 
     this.paginationNumbersWrapper.className = paginationStyle === 'dots' ? 'sr-only' : ''
@@ -500,9 +534,9 @@ export class Slider extends HTMLElement {
     this.track.style.cursor = allowSwiping ? 'grab' : 'default'
 
     if (['dots', 'both'].includes(paginationStyle)) {
-      this.paginationDots.map((dot, i) => {
+      this.paginationDots.forEach((dot, i) => {
         dot.setAttribute('data-state', i === 0 ? 'active' : 'inactive')
-        dot.ariaCurrent = i === 0
+        dot.setAttribute('aria-current', i === 0)
       })
     }
 
@@ -514,6 +548,8 @@ export class Slider extends HTMLElement {
       for (let i = 2; i < this.slides.length - 1; i++) {
         this.slides[i].setAttribute('data-state', 'inactive')
       }
+
+      this.list.style.blockSize = Math.max(...this.slides.map(slide => slide.offsetHeight)) + 'px'
     }
   }
 
@@ -523,32 +559,40 @@ export class Slider extends HTMLElement {
       currentPagination,
       totalPagination,
       paginationStyle,
+      hideSinglePagination,
       sliderStyle,
       isMoving,
       loop,
       controls,
     } = this.state
 
-    this.track.ariaBusy = isMoving
+    this.track.setAttribute('aria-busy', isMoving)
 
     if (!loop && controls) {
+      const hideControls = hideSinglePagination && totalPagination === 1
+
       this.previousButton.disabled = currentPagination === 1
       this.nextButton.disabled = currentPagination === totalPagination
-    }
 
-    for (const slide of this.slides) {
-      slide.ariaHidden = !currentSlides.includes(slide)
+      this.controls.style.setProperty(
+        'display', 
+        hideControls ? 'none' : getComputedStyle(this.controls).display,
+        hideControls ? 'important' : ''
+      )
     }
 
     if (['dots', 'both'].includes(paginationStyle)) {
       for (const dot of this.paginationDots) {
-        dot.setAttribute('data-state', dot === this.paginationDots[currentPagination - 1] ? 'active' : 'inactive')
-        dot.ariaCurrent = dot === this.paginationDots[currentPagination - 1]
+        dot.setAttribute(
+          'data-state',
+          dot === this.paginationDots[currentPagination - 1] ? 'active' : 'inactive'
+        )
+        dot.setAttribute('aria-current', dot === this.paginationDots[currentPagination - 1])
       }
     }
 
     if (sliderStyle === 'carousel') {
-      this.slides.map(slide => {
+      this.slides.forEach(slide => {
         slide.setAttribute(
           'data-state',
           slide === currentSlides[0]
@@ -618,11 +662,20 @@ export class Slider extends HTMLElement {
 
     return direction === 'previous'
       ? this.slides.slice(startingPoint - visibleSlidesCount, startingPoint)
-      : this.slides.slice(startingPoint + visibleSlidesCount, startingPoint + visibleSlidesCount * 2)
+      : this.slides.slice(
+          startingPoint + visibleSlidesCount,
+          startingPoint + visibleSlidesCount * 2
+        )
   }
 
   renderElements({ initialRender = false, recalculated = false } = {}) {
-    const { currentPagination, totalPagination, paginationStyle, paginationNumbersDivider, controls } = this.state
+    const {
+      currentPagination,
+      totalPagination,
+      paginationStyle,
+      paginationNumbersDivider,
+      controls,
+    } = this.state
 
     if (initialRender && paginationStyle === 'numbers') {
       this.paginationDotsWrapper.remove()
@@ -633,9 +686,7 @@ export class Slider extends HTMLElement {
       this.nextButton.remove()
     }
 
-    if (!Number.isFinite(currentPagination) || !Number.isFinite(totalPagination)) {
-      return
-    }
+    if (!Number.isFinite(currentPagination) || !Number.isFinite(totalPagination)) return
 
     if ((initialRender || recalculated) && ['dots', 'both'].includes(paginationStyle)) {
       const paginationDot = document.createElement('div')
@@ -651,15 +702,14 @@ export class Slider extends HTMLElement {
       this.paginationDotsWrapper.appendChild(fragment)
     }
 
-    this.paginationNumbersWrapper.innerHTML = currentPagination + paginationNumbersDivider + totalPagination
+    this.paginationNumbersWrapper.innerHTML =
+      currentPagination + paginationNumbersDivider + totalPagination
   }
 
   setAutoplayFn() {
     const { autoplay, playbackRate } = this.state
 
-    if (!autoplay) {
-      return
-    }
+    if (!autoplay) return
 
     this.autoplayFn = setInterval(() => {
       const { currentPagination, totalPagination, loop } = this.state
@@ -679,9 +729,7 @@ export class Slider extends HTMLElement {
   }
 
   clearAutoplayFn() {
-    if (!this.autoplayFn) {
-      return
-    }
+    if (!this.autoplayFn) return
 
     clearInterval(this.autoplayFn)
     this.autoplayFn = null
@@ -709,7 +757,11 @@ export class Slider extends HTMLElement {
         (direction === 'next' && currentPagination === totalPagination))
 
     direction =
-      !direction && jumpToPagination ? (currentPagination > jumpToPagination ? 'previous' : 'next') : direction
+      !direction && jumpToPagination
+        ? currentPagination > jumpToPagination
+          ? 'previous'
+          : 'next'
+        : direction
 
     if (autoplay && origin !== 'autoplay') {
       this.clearAutoplayFn()
@@ -723,14 +775,14 @@ export class Slider extends HTMLElement {
         : direction === 'previous'
         ? slideCount - visibleSlidesCount
         : slideCount + visibleSlidesCount
-      : jumpToPagination - visibleSlidesCount
+      : jumpToPagination * visibleSlidesCount - visibleSlidesCount
     const currentPaginationCalculation = !jumpToPagination
       ? isLooping
         ? direction === 'previous'
           ? totalPagination
           : 1
         : currentPagination + (direction === 'previous' ? -1 : 1)
-      : jumpToPagination / visibleSlidesCount
+      : jumpToPagination    
 
     this.state = {
       slideCount: slideCountCalculation,
@@ -748,27 +800,30 @@ export class Slider extends HTMLElement {
 
       switch (sliderStyle) {
         case 'fade':
-          this.slides.map(slide => {
+          this.slides.forEach(slide => {
             slide.style.opacity = currentSlides.includes(slide) ? 1 : 0
           })
           break
         case 'carousel':
-          this.slides.map(slide => {
+          this.slides.forEach(slide => {
             slide.style.inset = `0 auto auto ${
               this.slides.indexOf(slide) === this.slides.indexOf(currentSlides[0])
                 ? '50%'
                 : this.slides.indexOf(slide) ===
-                  (this.slides.indexOf(currentSlides[0]) - 1 + this.slides.length) % this.slides.length
+                  (this.slides.indexOf(currentSlides[0]) - 1 + this.slides.length) %
+                    this.slides.length
                 ? '0'
                 : this.slides.indexOf(slide) ===
-                  (this.slides.indexOf(currentSlides[0]) + 1 + this.slides.length) % this.slides.length
+                  (this.slides.indexOf(currentSlides[0]) + 1 + this.slides.length) %
+                    this.slides.length
                 ? '100%'
                 : '50%'
             }`
           })
           break
         default:
-          this.trackTranslateValue = isLooping && direction === 'next' ? 0 : this.newTrackTranslateValue
+          this.trackTranslateValue =
+            isLooping && direction === 'next' ? 0 : this.newTrackTranslateValue
       }
     }
 
@@ -791,7 +846,8 @@ export class Slider extends HTMLElement {
     const newVisibleSlidesCount = await this.getVisibleSlidesCount()
 
     if (sliderStyle === 'default') {
-      this.trackTranslateValue = oldVisibleSlidesCount !== newVisibleSlidesCount ? 0 : this.newTrackTranslateValue
+      this.trackTranslateValue =
+        oldVisibleSlidesCount !== newVisibleSlidesCount ? 0 : this.newTrackTranslateValue
     }
 
     if (oldVisibleSlidesCount !== newVisibleSlidesCount) {
@@ -800,7 +856,10 @@ export class Slider extends HTMLElement {
         currentPagination: 1,
         totalPagination: Math.ceil(this.slides.length / newVisibleSlidesCount),
         visibleSlidesCount: newVisibleSlidesCount,
-        currentSlides: this.getVisibleSlides({ fromFirst: true, visibleSlidesCount: newVisibleSlidesCount }),
+        currentSlides: this.getVisibleSlides({
+          fromFirst: true,
+          visibleSlidesCount: newVisibleSlidesCount,
+        }),
       }
 
       this.renderElements({ recalculated: true })
@@ -818,9 +877,7 @@ export class Slider extends HTMLElement {
   }, 500)
 
   handleSwipeStart(e) {
-    if (this.state.isMoving) {
-      return
-    }
+    if (this.state.isMoving) return
 
     this.swipeStore = {
       startX: e.touches ? e.touches[0].clientX : e.clientX,
@@ -837,9 +894,7 @@ export class Slider extends HTMLElement {
   handleSwipeMove(e) {
     e.preventDefault()
 
-    if (!this.swipeStore.startX) {
-      return
-    }
+    if (!this.swipeStore.startX) return
 
     this.swipeStore = {
       endX: e.touches ? e.touches[0].clientX : e.clientX,
@@ -882,12 +937,12 @@ export class Slider extends HTMLElement {
       payload,
     }
 
-    const changeEvent = new CustomEvent(eventType, {
+    const eventInstance = new CustomEvent(eventType, {
       bubbles: true,
       detail: { eventData },
     })
 
-    this.dispatchEvent(changeEvent)
+    this.dispatchEvent(eventInstance)
   }
 }
 
